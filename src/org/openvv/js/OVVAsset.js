@@ -1549,6 +1549,7 @@ function OVV_OVVID_Asset(uid, dependencies) {
      */
     var findPlayer = function () {
 
+        // Check for Flash player in an "embed" element...
         var embeds = document.getElementsByTagName('embed');
 
         for (var i = 0; i < embeds.length; i++) {
@@ -1557,6 +1558,7 @@ function OVV_OVVID_Asset(uid, dependencies) {
             }
         }
 
+        // Check for Flash player in an "object" element ...
         var objs = document.getElementsByTagName('object');
 
         for (var i = 0; i < objs.length; i++) {
@@ -1565,7 +1567,10 @@ function OVV_OVVID_Asset(uid, dependencies) {
             }
         }
 
-        return null;
+        // Now supports non-flash display elements :
+        // Check for display element with the 'id' attribute value of id
+        var elem = document.getElementById(id);
+        return elem;
     };
 
     var isInFocus = function () {
