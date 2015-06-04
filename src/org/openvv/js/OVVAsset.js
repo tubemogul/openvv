@@ -38,7 +38,16 @@ function OVV() {
     */
     this.DEBUG = false;
 
-    /**
+	/**
+	 * For Display Ad support:
+	 * If a Display ad invokes OVV in a browser without Flash enabled it must
+	 * set this flag to false during initialization, to prevent Flash beacon creation.
+	 *
+	 * @type {Boolean}
+	 */
+	this.FLASH_SUPPORTED = true;
+
+	/**
      * Whether OpenVV is running within an iframe or not.
      * @type {Boolean}
      */
@@ -619,6 +628,10 @@ function OVVBeaconSupportCheck()
 {
     var ovvBrowser = new OVVBrowser($ovv.userAgent);
 
+	if (ovvBrowser.name === "Firefox"){
+		return true;
+	}
+
     var browser = ovvBrowser.getBrowser();
     var browserIDEnum = ovvBrowser.getBrowserIDEnum();
 
@@ -870,9 +883,22 @@ function OVV_OVVID_Asset(uid, dependencies) {
             check.error = 'Player not found!';
             return check;
         }
+
+	    var getDimensions = function(check, asset){
+		    var assetRect = asset.getBoundingClientRect();
+		    var viewportRect = geometryViewabilityCalculator.getViewportSize(window);
+		    check.objTop = assetRect.top;
+		    check.objRight = assetRect.right;
+		    check.objBottom = assetRect.bottom;
+		    check.objLeft = assetRect.left;
+		    check.clientWidth = viewportRect.width;
+		    check.clientHeight = viewportRect.height;
+	    }
+
         // Check if a CSS attribute value ( 'visibility:hidden' or 'display:none' )
         // on player or an inheritable containing element is rendering the player invisible.
         if (checkCssInvisibility(check, player) === true){
+	        getDimensions(check, player);
             if ($ovv.DEBUG) {
                 check.cssViewabilityState = OVV_OVVID_Check.UNVIEWABLE;
             }else{
@@ -883,7 +909,8 @@ function OVV_OVVID_Asset(uid, dependencies) {
         // player area.
 
         if (checkDomObscuring(check, player) === true){
-            if ($ovv.DEBUG) {
+	        getDimensions(check, player);
+	        if ($ovv.DEBUG) {
                 check.domViewabilityState = OVV_OVVID_Check.UNVIEWABLE;
             }else{
                 return check;
@@ -893,7 +920,7 @@ function OVV_OVVID_Asset(uid, dependencies) {
             //player.jsTrace({OBSCURED:check.percentObscured});
         }
 
-        // if we're in IE and we're in a cross-domain iframe, return unmeasurable
+        // if we're not in a Flash-enabled browser, or in IE and we're in a cross-domain iframe, return unmeasurable
         // We are able to measure for same domain iframe ('friendly iframe')
         if (!beaconSupportCheck.supportsBeacons() && check.geometrySupported === false) {
             check.viewabilityState = OVV_OVVID_Check.UNMEASURABLE;
@@ -1542,9 +1569,11 @@ function OVV_OVVID_Asset(uid, dependencies) {
     };
 
     /**
-     * Finds the video player associated with this asset by searching through
+     * Finds the video player or display asset associated with this 'asset'.
+     * If the asset is a Flash Player if is found by by searching through
      * each EMBED and OBJECT element on the page, testing to see if it has the
      * randomly generated callback signature.
+     * If the asset is a static Display asset (
      * @returns {Element|null} The video player being measured
      */
     var findPlayer = function () {
@@ -1597,11 +1626,13 @@ function OVV_OVVID_Asset(uid, dependencies) {
             getBeaconContainerFunc = getFrameBeaconContainer;
             createFrameBeacons.bind(this)();
         }
-        else {
+        else if ($ovv.FLASH_SUPPORTED){
             getBeaconFunc = getFlashBeacon;
             getBeaconContainerFunc = getFlashBeaconContainer;
             // 'BEACON_SWF_URL' is String substituted from ActionScript
             createBeacons.bind(this)('BEACON_SWF_URL');
+        }else{
+	        // Unmeasurable
         }
     } else if (player && player.onJsReady) {
         // since we don't have to wait for beacons to be ready, we're ready now
@@ -1854,6 +1885,8 @@ function OVV_OVVID_GeometryViewabilityCalculator() {
         // Divied the visible asset area by the full asset area to the the visible percentage
         return Math.round((((assetVisibleWidth * assetVisibleHeight)) / (asset.width * asset.height)) * 100);
     };
+	// make public
+	this.getViewportSize = getViewPortSize;
 }
 
 // A memoize function to store function results
@@ -1870,6 +1903,8 @@ Function.prototype.memoize = function() {
         return fn.memoized.apply(fn, arguments);
     }
 };
+
+
 // initialize the OVV object if it doesn't exist
 window.$ovv = window.$ovv || new OVV();
 
