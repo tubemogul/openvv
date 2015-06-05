@@ -39,15 +39,6 @@ function OVV() {
     this.DEBUG = false;
 
 	/**
-	 * For Display Ad support:
-	 * If a Display ad invokes OVV in a browser without Flash enabled it must
-	 * set this flag to false during initialization, to prevent Flash beacon creation.
-	 *
-	 * @type {Boolean}
-	 */
-	this.FLASH_SUPPORTED = true;
-
-	/**
      * Whether OpenVV is running within an iframe or not.
      * @type {Boolean}
      */
@@ -627,17 +618,22 @@ function OVVBrowser(userAgent)
 function OVVBeaconSupportCheck()
 {
     var ovvBrowser = new OVVBrowser($ovv.userAgent);
-
-	if (ovvBrowser.name === "Firefox"){
-		return true;
-	}
-
     var browser = ovvBrowser.getBrowser();
     var browserIDEnum = ovvBrowser.getBrowserIDEnum();
 
     this.supportsBeacons = function()
     {
-        //Windows 8.1 is represented as Windows NT 6.3 in user agent string
+	    if (ovvBrowser.name === "Firefox"){
+		    // Does not require Flash beacons - uses MozPaintCount
+		    return true;
+	    }
+
+	    if ('BEACON_SWF_URL'.substr(0,6) == "BEACON"){
+		    // BEACON_SWF_URL has not been replaced by a valid URL
+		    return false;
+	    }
+
+		//Windows 8.1 is represented as Windows NT 6.3 in user agent string
         var WIN_8_1 = 6.3;
         var isIE = browser.ID == browserIDEnum.MSIE;
         var isSupportedIEVersion = browser.version >= 11;
@@ -907,21 +903,22 @@ function OVV_OVVID_Asset(uid, dependencies) {
         }
         // Check if any detectable element in the DOM is obscuring more than 50% of the
         // player area.
+		//  - Removed, pending investigation into why Display viewability reports 100% obscured on this test in Configurator preview
+		// -  even though ad is visible on page.
+		//       if (checkDomObscuring(check, player) === true){
+		//	        getDimensions(check, player);
+		//	        if ($ovv.DEBUG) {
+		//               check.domViewabilityState = OVV_OVVID_Check.UNVIEWABLE;
+		//           }else{
+		//               return check;
+		//           }
+		//       }else{
+		//           //player.jsTrace("obscured : " + check.percentObscured.toString());
+		//           //player.jsTrace({OBSCURED:check.percentObscured});
+		//       }
 
-        if (checkDomObscuring(check, player) === true){
-	        getDimensions(check, player);
-	        if ($ovv.DEBUG) {
-                check.domViewabilityState = OVV_OVVID_Check.UNVIEWABLE;
-            }else{
-                return check;
-            }
-        }else{
-            //player.jsTrace("obscured : " + check.percentObscured.toString());
-            //player.jsTrace({OBSCURED:check.percentObscured});
-        }
-
-        // if we're not in a Flash-enabled browser, or in IE and we're in a cross-domain iframe, return unmeasurable
-        // We are able to measure for same domain iframe ('friendly iframe')
+        // if we're not in a Flash-enabled browser (Display only), or in IE and we're in a cross-domain
+        // iframe, return unmeasurable. We are able to measure for same domain iframe ('friendly iframe')
         if (!beaconSupportCheck.supportsBeacons() && check.geometrySupported === false) {
             check.viewabilityState = OVV_OVVID_Check.UNMEASURABLE;
             if (!$ovv.DEBUG) {
@@ -1076,61 +1073,63 @@ function OVV_OVVID_Asset(uid, dependencies) {
         return false;
     };
 
-    /**
-     * Checks if the player is more then 50% obscured by another dom element.
-     * Is so, viewability at the time of this check is 'not viewable' and no further check
-     * is required.
-     * If the player is in an iframe this check is restricted to elements within
-     * the DOM of the iframe document
-     * @param {OVV_OVVID_Check} check The OVV_OVVID_Check object to populate
-     * @param {Element} player The HTML Element to measure
-     */
-    var checkDomObscuring = function(check, player){
-        var playerRect = player.getBoundingClientRect(),
-            offset = 12, // ToDo: Make sure test points don't overlap beacons.
-            xLeft = playerRect.left+offset,
-            xRight = playerRect.right-offset,
-            yTop = playerRect.top+offset,
-            yBottom = playerRect.bottom-offset,
-            xCenter = Math.floor(playerRect.left+playerRect.width/2),
-            yCenter = Math.floor(playerRect.top+playerRect.height/2),
-            testPoints = [
-                { x:xLeft,   y:yTop },
-                { x:xCenter, y:yTop },
-                { x:xRight,  y:yTop },
-                { x:xLeft,   y:yCenter },
-                { x:xCenter, y:yCenter },
-                { x:xRight,  y:yCenter },
-                { x:xLeft,   y:yBottom },
-                { x:xCenter, y:yBottom },
-                { x:xRight,  y:yBottom }
-            ];
-        for (var p in testPoints) {
-            if (testPoints[p].x >= 0 && testPoints[p].y >= 0) {
-                elem = document.elementFromPoint(testPoints[p].x, testPoints[p].y);
-                if (elem != null && elem != player) {
-                    overlappingArea = overlapping(playerRect, elem.getBoundingClientRect());
-                    if (overlappingArea > 0) {
-                        check.percentObscured = 100 * overlapping(playerRect, elem.getBoundingClientRect());
-                        if (check.percentObscured > 50) {
-                            check.percentViewable = 100 - check.percentObscured;
-                            check.technique = OVV_OVVID_Check.DOM_OBSCURING;
-                            check.viewabilityState = OVV_OVVID_Check.UNVIEWABLE;
-                            return true;
-                        }
-                    }
-                }
-            }
-        }
-        return false;
-    }
-
-    var overlapping = function(playerRect, elem ){
-        var playerArea = playerRect.width * playerRect.height;
-        var  x_overlap = Math.max(0, Math.min(playerRect.right, elem.right) - Math.max(playerRect.left, elem.left));
-        var  y_overlap = Math.max(0, Math.min(playerRect.bottom, elem.bottom) - Math.max(playerRect.top, elem.top));
-        return (x_overlap * y_overlap) / playerArea;
-    }
+//  - Removed, pending investigation into why Display viewability reports 100% obscured on this test in Configurator preview
+// -  even though ad is visible on page.
+//    /**
+//     * Checks if the player is more then 50% obscured by another dom element.
+//     * Is so, viewability at the time of this check is 'not viewable' and no further check
+//     * is required.
+//     * If the player is in an iframe this check is restricted to elements within
+//     * the DOM of the iframe document
+//     * @param {OVV_OVVID_Check} check The OVV_OVVID_Check object to populate
+//     * @param {Element} player The HTML Element to measure
+//     */
+//    var checkDomObscuring = function(check, player){
+//        var playerRect = player.getBoundingClientRect(),
+//            offset = 12, // ToDo: Make sure test points don't overlap beacons.
+//            xLeft = playerRect.left+offset,
+//            xRight = playerRect.right-offset,
+//            yTop = playerRect.top+offset,
+//            yBottom = playerRect.bottom-offset,
+//            xCenter = Math.floor(playerRect.left+playerRect.width/2),
+//            yCenter = Math.floor(playerRect.top+playerRect.height/2),
+//            testPoints = [
+//                { x:xLeft,   y:yTop },
+//                { x:xCenter, y:yTop },
+//                { x:xRight,  y:yTop },
+//                { x:xLeft,   y:yCenter },
+//                { x:xCenter, y:yCenter },
+//                { x:xRight,  y:yCenter },
+//                { x:xLeft,   y:yBottom },
+//                { x:xCenter, y:yBottom },
+//                { x:xRight,  y:yBottom }
+//            ];
+//        for (var p in testPoints) {
+//            if (testPoints[p].x >= 0 && testPoints[p].y >= 0) {
+//                elem = document.elementFromPoint(testPoints[p].x, testPoints[p].y);
+//                if (elem != null && elem != player) {
+//                    overlappingArea = overlapping(playerRect, elem.getBoundingClientRect());
+//                    if (overlappingArea > 0) {
+//                        check.percentObscured = 100 * overlapping(playerRect, elem.getBoundingClientRect());
+//                        if (check.percentObscured > 50) {
+//                            check.percentViewable = 100 - check.percentObscured;
+//                            check.technique = OVV_OVVID_Check.DOM_OBSCURING;
+//                            check.viewabilityState = OVV_OVVID_Check.UNVIEWABLE;
+//                            return true;
+//                        }
+//                    }
+//                }
+//            }
+//        }
+//        return false;
+//    }
+//
+//    var overlapping = function(playerRect, elem ){
+//        var playerArea = playerRect.width * playerRect.height;
+//        var  x_overlap = Math.max(0, Math.min(playerRect.right, elem.right) - Math.max(playerRect.left, elem.left));
+//        var  y_overlap = Math.max(0, Math.min(playerRect.bottom, elem.bottom) - Math.max(playerRect.top, elem.top));
+//        return (x_overlap * y_overlap) / playerArea;
+//    }
 
 
     /**
@@ -1292,13 +1291,9 @@ function OVV_OVVID_Asset(uid, dependencies) {
      */
     var createBeacons = function (url) {
         // double checking that our URL was actually set to something
-        // (BEACON_SWF_URL is obfuscated here to prevent it from being
-        // String substituted by ActionScript)
-        // Dynamically unobfuscate to prevent minify from reconstructing original token string
-        var reversed = "LRU_FWS_NOCAEB";
-        var unreplaced = reversed.split("").reverse().join('');
-        if (url == '' || url == unreplaced) {
-            return;
+	    if ('BEACON_SWF_URL'.substr(0,6) == "BEACON"){
+		    // BEACON_SWF_URL has not been replaced by a a valid URL
+		    return;
         }
 
         for (var index = 0; index <= TOTAL_BEACONS; index++) {
@@ -1626,13 +1621,11 @@ function OVV_OVVID_Asset(uid, dependencies) {
             getBeaconContainerFunc = getFrameBeaconContainer;
             createFrameBeacons.bind(this)();
         }
-        else if ($ovv.FLASH_SUPPORTED){
+        else {
             getBeaconFunc = getFlashBeacon;
             getBeaconContainerFunc = getFlashBeaconContainer;
             // 'BEACON_SWF_URL' is String substituted from ActionScript
             createBeacons.bind(this)('BEACON_SWF_URL');
-        }else{
-	        // Unmeasurable
         }
     } else if (player && player.onJsReady) {
         // since we don't have to wait for beacons to be ready, we're ready now
