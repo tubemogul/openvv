@@ -1544,13 +1544,16 @@ function OVVAsset(uid, dependencies) {
     };
 
     /**
-    * Finds the video player associated with this asset by searching through
+    * Now supports non-flash display elements :
+    * Finds the video player or display element associated with this asset by searching through
     * each EMBED and OBJECT element on the page, testing to see if it has the
-    * randomly generated callback signature.
-    * @returns {Element|null} The video player being measured
+    * randomly generated callback signature. If not it then checks for an element with 'id'
+    * attribute value matching the 'uid' that was passed into the OVVAsset constructor.
+    * @returns {Element|null} The video player or display element being measured.
     */
     var findPlayer = function () {
 
+	    // Check for Flash Plugin in an 'embed' element...
         var embeds = document.getElementsByTagName('embed');
 
         for (var i = 0; i < embeds.length; i++) {
@@ -1559,6 +1562,7 @@ function OVVAsset(uid, dependencies) {
             }
         }
 
+	    // Check for Flash Plugin in an 'object' element...
         var objs = document.getElementsByTagName('object');
 
         for (var i = 0; i < objs.length; i++) {
@@ -1567,7 +1571,9 @@ function OVVAsset(uid, dependencies) {
             }
         }
 
-        return null;
+	    // Check for display element with the 'id' attribute value of id
+	    var elem = document.getElementById(id);
+	    return elem;
     };
 
     var isInFocus = function () {
