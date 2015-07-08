@@ -209,6 +209,10 @@ package org.openvv {
 		 * True if JS is ready, and beacons are loaded if needed.
 		 */
 		private var jsReady:Boolean;
+        /**
+         * Moved to Class scope to permit access in classes derived from OVVAsset
+         */
+        protected var ovvAssetSource: String = "{{OVVAssetJS}}";
 
         ////////////////////////////////////////////////////////////
         //   CONSTRUCTOR
@@ -253,7 +257,6 @@ package org.openvv {
             _renderMeter = new OVVRenderMeter(_sprite);
             _sprite.addEventListener(OVVThrottleType.THROTTLE, onThrottleEvent);
 
-            var ovvAssetSource: String = "{{OVVAssetJS}}";
             ovvAssetSource = ovvAssetSource
                                 .replace(/OVVID/g, _id)
                                 .replace(/INTERVAL/g, POLL_INTERVAL)
