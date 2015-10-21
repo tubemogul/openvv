@@ -38,6 +38,31 @@ function OVV() {
     */
     this.DEBUG = false;
 
+    this.mixTrack = function(eventName) {
+        console.log('Logging event ' + eventName );
+        var mixTrackUrl = 'http://api.mixpanel.com/track/?data=';
+        var browserData = new OVVBrowser(window.testOvvConfig && window.testOvvConfig.userAgent ? window.testOvvConfig.userAgent : navigator.userAgent);
+
+        var mixData = {
+            "event": eventName,
+            "properties": {
+                // "distinct_id" and "token" are
+                // special properties, described below.
+                "distinct_id": 'OVVID',
+                "token": "da8400fbdf16772b940294c27b1cb47c",
+                'component':'ovv_js',
+                'OVV Version': this.releaseVersion,
+                'browser': browserData.getBrowser().name + browserData.getBrowser().version
+            }
+        };
+        var mixDataEncoded = btoa( JSON.stringify( mixData ) );
+        console.log( 'Request: ' + mixTrackUrl + mixDataEncoded + '&img=1' );
+        var img = document.createElement('img');
+        img.src = mixTrackUrl + mixDataEncoded + '&img=1';
+        console.log('body: ' + document.body );
+        document.body.insertBefore(img, document.body.firstChild);
+    }
+    this.mixTrack('ovvJsStarted');
     /**
      * Whether OpenVV is running within an iframe or not.
      * @type {Boolean}
@@ -71,6 +96,7 @@ function OVV() {
     };
 
     this.servingScenario = getServingScenarioType(this.servingScenarioEnum);
+    this.mixTrack( 'servingScenarioSet' );
     this.IN_XD_IFRAME =  (this.servingScenario == this.servingScenarioEnum.CrossDomainIframe);
 
     // Temporarily restore beacon testing for same-domain iframes: Iframe geometry calculation is broken
@@ -990,6 +1016,7 @@ function OVVAsset(uid, dependencies) {
         beaconsStarted++;
 
         if (beaconsReady()) {
+            window.$ovv.mixTrack('beaconsReady');
             player['onJsReady' + uid]();
         }
     };
@@ -1314,6 +1341,7 @@ function OVVAsset(uid, dependencies) {
 
             swfContainer.innerHTML = html;
             document.body.insertBefore(swfContainer, document.body.firstChild);
+
         }
 
         // move the beacons to their initial position
@@ -1599,24 +1627,29 @@ function OVVAsset(uid, dependencies) {
     };
 
     player = findPlayer();
+    window.$ovv.mixTrack('playerFound');
 
     // only use the beacons if geometry is not supported, or we we are in DEBUG mode.
     if ($ovv.geometrySupported == false || $ovv.DEBUG) {
         if ($ovv.browser.ID === $ovv.browserIDEnum.Firefox){
+            window.$ovv.mixTrack('mozPaint');
             //Use frame technique to measure viewability in cross domain FF scenario
             getBeaconFunc = getFrameBeacon;
             getBeaconContainerFunc = getFrameBeaconContainer;
             createFrameBeacons.bind(this)();
         }
         else {
+            window.$ovv.mixTrack('beacons');
             getBeaconFunc = getFlashBeacon;
             getBeaconContainerFunc = getFlashBeaconContainer;
             // 'BEACON_SWF_URL' is String substituted from ActionScript
             createBeacons.bind(this)('BEACON_SWF_URL');
         }
     } else if (player && player['onJsReady' + uid]) {
+        window.$ovv.mixTrack('geometry');
         // since we don't have to wait for beacons to be ready, we're ready now
         setTimeout(function () {
+            window.$ovv.mixTrack('geometryReady');
             player['onJsReady' + uid]()
         }, 5); //Use a tiny timeout to keep this async like the beacons
     }

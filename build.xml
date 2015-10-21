@@ -10,7 +10,7 @@
 	<property name="bin.dir" value="bin" />
 	<property name="tmp.dir" value="tmp" />
 	<property name="asdoc.dir" value="asdoc" />
-
+  
 	<condition property="uglifyjs" value="uglifyjs.cmd" else="uglifyjs">
 		<os family="windows"/>
 	</condition>
@@ -71,6 +71,10 @@
 		<compc output="${bin.dir}/openvv.swc"
 			   include-classes="org.openvv.OVVAsset org.openvv.OVVCheck org.openvv.OVVRenderMeter org.openvv.OVVThrottleType org.openvv.events.OVVEvent net.iab.IVPAID net.iab.VPAIDEvent org.openvv.OVVVersion">
 			<source-path path-element="${tmp.dir}"/>
+			<include-libraries dir='${basedir}/../../Sites/AdUnit/mixpanel/' append='true'>
+        	<include name="mixpanel-as3-lib.swc" />
+    </include-libraries>
+
 		</compc>
 		<!-- Remove the temp dir -->
 		<delete dir="${tmp.dir}" failonerror="false"/>

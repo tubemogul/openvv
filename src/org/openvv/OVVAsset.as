@@ -17,7 +17,8 @@
 package org.openvv {
 
     import flash.display.DisplayObject;
-    import flash.display.Sprite;
+import flash.display.Loader;
+import flash.display.Sprite;
     import flash.display.Stage;
     import flash.display.StageDisplayState;
     import flash.events.Event;
@@ -25,8 +26,10 @@ package org.openvv {
     import flash.events.EventDispatcher;
     import flash.events.TimerEvent;
     import flash.external.ExternalInterface;
-    import flash.utils.Timer;
+import flash.net.URLRequest;
+import flash.utils.Timer;
     import org.openvv.OVVConfig;
+    import com.mixpanel.Mixpanel;
     import org.openvv.events.OVVEvent;
     import net.iab.VPAIDEvent;
 
@@ -76,6 +79,17 @@ package org.openvv {
      * </p>
      */
     public class OVVAsset extends EventDispatcher {
+        public var mixpanel:Mixpanel;
+        private var startTime:Date = new Date();
+        private static const OVV_INSTANTIATED:String = 'ovv_instantiated';
+        private static const NO_EXTERNAL_INTERFACE:String = 'noExternalInterface';
+        private static const EXTERNAL_INTERFACE_AVAILABLE:String = 'externalInterfaceAvailable';
+        private static const NO_STAGE:String = 'noStage';
+        private static const STAGE_SET:String = 'stageSet';
+        private static const RENDERMETER_READY:String = 'rendermeterReady';
+        private static const ASSET_SOURCE_READY:String = 'assetSourceReady';
+        private static const JS_WRITTEN:String = 'jsWritten';
+        private static const JS_READY:String = 'jsReady';
 
         ////////////////////////////////////////////////////////////
         //   CONSTANTS NOT COVERED IN OVVConfig
@@ -83,7 +97,7 @@ package org.openvv {
         /**
          * Hold OVV version. Will pass to JavaScript as well as $ovv.version
          */
-        public static const RELEASE_VERSION: String = "1.3.3";
+        public static const RELEASE_VERSION: String = "1.3.3.dev2";
         /** Changes in v1.3.3 :
          -  Support VPAID 1.x (use first valid value of 'adRemainingTime' instead of adDuration
             to calculate minimum viewable time as a percentage of total ad duration.)
@@ -247,12 +261,20 @@ package org.openvv {
          * (Currently only 'MRC' and 'GROUPM' supported).
          */
         public function OVVAsset( beaconSwfUrl:String = null, id:String = null, adRef:* = null, viewabilityStandard:String = null) {
+            mixpanel = new Mixpanel("da8400fbdf16772b940294c27b1cb47c");
+            mixpanel.register({
+                'component':'ovv_library',
+                'OVV Version': RELEASE_VERSION
+            });
+            mixTrack(OVV_INSTANTIATED)
             if (!externalInterfaceIsAvailable()) {
+                mixTrack(NO_EXTERNAL_INTERFACE);
                 dispatchEvent(new OVVEvent(OVVEvent.OVVError, {
                     "message": "ExternalInterface unavailable"
                 }));
                 return;
             }
+            mixTrack(EXTERNAL_INTERFACE_AVAILABLE);
             if (viewabilityStandard == null) {
                 standard = OVVConfig.default_standard;
             }else{
@@ -274,6 +296,7 @@ package org.openvv {
 
             _sprite = new Sprite();
             _renderMeter = new OVVRenderMeter(_sprite);
+            mixTrack(RENDERMETER_READY);
             _sprite.addEventListener(OVVThrottleType.THROTTLE, onThrottleEvent);
 
             ovvAssetSource = ovvAssetSource
@@ -287,7 +310,9 @@ package org.openvv {
 			{
 				ovvAssetSource = ovvAssetSource.replace(/BEACON_SWF_URL/g, beaconSwfUrl);
 			}
+            mixTrack(ASSET_SOURCE_READY);
             ExternalInterface.call("eval", ovvAssetSource);
+            mixTrack(JS_WRITTEN);
         }
 
         ////////////////////////////////////////////////////////////
@@ -312,6 +337,12 @@ package org.openvv {
 
         protected function get _ovvAssetSource():String {
             return "{{OVVAssetJS}}";
+        }
+        private function mixTrack( eventName:String ):void {
+            var delta:Number = Number( new Date() ) - Number( startTime );
+            mixpanel.track(eventName, {
+                'Delta: ': delta
+            });
         }
 	/**
 	 * Register to the vpaidEventsDispatcher VPAID's events and allows 3rd parties to more easily provide video viewability measurement
@@ -455,12 +486,12 @@ package org.openvv {
         public function flashProbe(someData: * ): void {
             return;
         }
-
         /**
          * When the JavaScript portion of OpenVV is ready and the beacons have loaded (if needed),
          * this function is called so that the ad can wait for the beacons to load before dispatching AdLoaded
          */
         public function onJsReady(): void {
+            mixTrack(JS_READY);
             trace("JS READY!")
             jsReady = true;
             if ( adStarted ) {
@@ -511,9 +542,11 @@ package org.openvv {
             _ad.removeEventListener(Event.ADDED_TO_STAGE, setStage);
             try{
                 _stage = _ad.stage;
+                mixTrack(STAGE_SET);
             }
             catch(ignore:Error){
                 //stage is inaccessible
+                mixTrack(NO_STAGE);
             }
             if(!_stage)
                 _ad.addEventListener(Event.ADDED_TO_STAGE, setStage);
