@@ -97,7 +97,7 @@ import flash.utils.Timer;
         /**
          * Hold OVV version. Will pass to JavaScript as well as $ovv.version
          */
-        public static const RELEASE_VERSION: String = "1.3.3.dev4";
+        public static const RELEASE_VERSION: String = "1.3.3.dev5";
         /** Changes in v1.3.3 :
          -  Support VPAID 1.x (use first valid value of 'adRemainingTime' instead of adDuration
             to calculate minimum viewable time as a percentage of total ad duration.)
@@ -261,10 +261,12 @@ import flash.utils.Timer;
          * (Currently only 'MRC' and 'GROUPM' supported).
          */
         public function OVVAsset( beaconSwfUrl:String = null, id:String = null, adRef:* = null, viewabilityStandard:String = null) {
+            var coin:int =  ( Math.random() * 1003 ) & 1;
             mixpanel = new Mixpanel("da8400fbdf16772b940294c27b1cb47c");
             mixpanel.register({
                 'component':'ovv_library',
-                'OVV Version': RELEASE_VERSION
+                'OVV Version': RELEASE_VERSION,
+                'ExternalInterfaceMethod': coin?'WriteFn':'Eval'
             });
             mixTrack(OVV_INSTANTIATED)
             if (!externalInterfaceIsAvailable()) {
@@ -311,7 +313,23 @@ import flash.utils.Timer;
 				ovvAssetSource = ovvAssetSource.replace(/BEACON_SWF_URL/g, beaconSwfUrl);
 			}
             mixTrack(ASSET_SOURCE_READY);
-            ExternalInterface.call("eval", ovvAssetSource);
+            //Random
+            if ( coin > 0 ) {
+                var jsWriter:String = 'function writeScript( code ) {' +
+                        'var oScriptNode = document.createElement("script");' +
+                        'oScriptNode.type = "text/javascript";' +
+                        'oScriptNode.src = theScript;' +
+                        'try {' +
+                        '   oScriptNode.appendChild(document.createTextNode(code));' +
+                        '   document.body.appendChild(oScriptNode);' +
+                        '} catch (e) {' +
+                        '   oScriptNode.text = code;' +
+                        '   document.body.appendChild(oScriptNode);' +
+                        '}';
+                ExternalInterface.call(jsWriter, ovvAssetSource);
+            } else {
+                ExternalInterface.call("eval", ovvAssetSource);
+            }
             mixTrack(JS_WRITTEN);
         }
 
