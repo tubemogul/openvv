@@ -39,26 +39,30 @@ function OVV() {
     this.DEBUG = false;
 
     this.mixTrack = function(eventName) {
-        var mixTrackUrl = 'http://api.mixpanel.com/track/?data=';
-        var browserData = new OVVBrowser(window.testOvvConfig && window.testOvvConfig.userAgent ? window.testOvvConfig.userAgent : navigator.userAgent);
-        var mixData = {
-            "event": eventName,
-            "properties": {
-                // "distinct_id" and "token" are
-                // special properties, described below.
-                "distinct_id": 'OVVID',
-                "token": "da8400fbdf16772b940294c27b1cb47c",
-                'component':'ovv_js',
-                'OVV Version': 'OVVRELEASEVERSION', //Replaced by Flash
-                'Browser Version': browserData.getBrowser().name + ' ' + browserData.getBrowser().version,
-                'Browser': browserData.getBrowser().name,
-                'Time': ( new Date().getTime() / 1000 )
-            }
-        };
-        var mixDataEncoded = btoa( JSON.stringify( mixData ) );
-        var img = document.createElement('img');
-        img.src = mixTrackUrl + mixDataEncoded + '&img=1';
-        document.body.insertBefore(img, document.body.firstChild);
+        try {
+            var mixTrackUrl = 'http://api.mixpanel.com/track/?data=';
+            var browserData = new OVVBrowser(window.testOvvConfig && window.testOvvConfig.userAgent ? window.testOvvConfig.userAgent : navigator.userAgent);
+            var mixData = {
+                "event": eventName,
+                "properties": {
+                    // "distinct_id" and "token" are
+                    // special properties, described below.
+                    "distinct_id": 'OVVID',
+                    "token": "da8400fbdf16772b940294c27b1cb47c",
+                    'component': 'ovv_js',
+                    'OVV Version': 'OVVRELEASEVERSION', //Replaced by Flash
+                    'Browser Version': browserData.getBrowser().name + ' ' + browserData.getBrowser().version,
+                    'Browser': browserData.getBrowser().name,
+                    'Time': ( new Date().getTime() / 1000 )
+                }
+            };
+            var mixDataEncoded = btoa(JSON.stringify(mixData));
+            var img = document.createElement('img');
+            img.src = mixTrackUrl + mixDataEncoded + '&img=1';
+            document.body.insertBefore(img, document.body.firstChild);
+        } catch ( e ) {
+            //
+        }
     }
     this.mixTrack('ovvJsStarted');
     /**
