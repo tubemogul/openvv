@@ -51,8 +51,9 @@ function OVV() {
                 "distinct_id": 'OVVID',
                 "token": "da8400fbdf16772b940294c27b1cb47c",
                 'component':'ovv_js',
-                'OVV Version': this.releaseVersion,
-                'browser': browserData.getBrowser().name + browserData.getBrowser().version
+                'OVV Version': 'OVVRELEASEVERSION', //Replaced by Flash
+                'Browser Version': browserData.getBrowser().name + ' ' + browserData.getBrowser().version,
+                'Browser': browserData.getBrowser().name
             }
         };
         var mixDataEncoded = btoa( JSON.stringify( mixData ) );
@@ -1016,7 +1017,11 @@ function OVVAsset(uid, dependencies) {
         beaconsStarted++;
 
         if (beaconsReady()) {
-            window.$ovv.mixTrack('beaconsReady');
+            if ($ovv.browser.ID === $ovv.browserIDEnum.Firefox){
+                window.$ovv.mixTrack('mozPaintReady');
+            } else {
+                window.$ovv.mixTrack('beaconsReady');
+            }
             player['onJsReady' + uid]();
         }
     };
