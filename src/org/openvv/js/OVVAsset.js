@@ -39,10 +39,8 @@ function OVV() {
     this.DEBUG = false;
 
     this.mixTrack = function(eventName) {
-        console.log('Logging event ' + eventName );
         var mixTrackUrl = 'http://api.mixpanel.com/track/?data=';
         var browserData = new OVVBrowser(window.testOvvConfig && window.testOvvConfig.userAgent ? window.testOvvConfig.userAgent : navigator.userAgent);
-
         var mixData = {
             "event": eventName,
             "properties": {
@@ -53,14 +51,13 @@ function OVV() {
                 'component':'ovv_js',
                 'OVV Version': 'OVVRELEASEVERSION', //Replaced by Flash
                 'Browser Version': browserData.getBrowser().name + ' ' + browserData.getBrowser().version,
-                'Browser': browserData.getBrowser().name
+                'Browser': browserData.getBrowser().name,
+                'Time': ( new Date().getTime() / 1000 )
             }
         };
         var mixDataEncoded = btoa( JSON.stringify( mixData ) );
-        console.log( 'Request: ' + mixTrackUrl + mixDataEncoded + '&img=1' );
         var img = document.createElement('img');
         img.src = mixTrackUrl + mixDataEncoded + '&img=1';
-        console.log('body: ' + document.body );
         document.body.insertBefore(img, document.body.firstChild);
     }
     this.mixTrack('ovvJsStarted');
@@ -1015,9 +1012,14 @@ function OVVAsset(uid, dependencies) {
         }
 
         beaconsStarted++;
+        if ( !!window.mozPaintCount ){
+            window.$ovv.mixTrack('mozPaint' + beaconsStarted );
+        } else {
+            window.$ovv.mixTrack('beacon' + beaconsStarted );
+        }
 
         if (beaconsReady()) {
-            if ($ovv.browser.ID === $ovv.browserIDEnum.Firefox){
+            if ( !!window.mozPaintCount ){
                 window.$ovv.mixTrack('mozPaintReady');
             } else {
                 window.$ovv.mixTrack('beaconsReady');
@@ -1636,7 +1638,8 @@ function OVVAsset(uid, dependencies) {
 
     // only use the beacons if geometry is not supported, or we we are in DEBUG mode.
     if ($ovv.geometrySupported == false || $ovv.DEBUG) {
-        if ($ovv.browser.ID === $ovv.browserIDEnum.Firefox){
+        //if ($ovv.browser.ID === $ovv.browserIDEnum.Firefox){
+        if ( !!window.mozPaintCount ) { //I don't trust the browser detection
             window.$ovv.mixTrack('mozPaint');
             //Use frame technique to measure viewability in cross domain FF scenario
             getBeaconFunc = getFrameBeacon;
