@@ -1016,7 +1016,7 @@ function OVVAsset(uid, dependencies) {
         }
 
         beaconsStarted++;
-        if ( !!window.mozPaintCount ){
+        if ( beaconsStarted == 1 && !!window.mozPaintCount ){
             window.$ovv.mixTrack('mozPaint' + beaconsStarted );
         } else {
             window.$ovv.mixTrack('beacon' + beaconsStarted );
@@ -1379,14 +1379,14 @@ function OVVAsset(uid, dependencies) {
                 'window.wasInViewArea = false; ' +
                 'window.isInView = undefined; ' +
                 'window.wasViewed = false; ' +
-                'window.started = false; ' +
+                //'window.started = false; ' +
                 'window.index = ' + index + ';'  +
                 'window.isViewable = function() { return window.isInView; }; ' +
                 'var cnt = 0; ' +
                 'setTimeout(function() {' +
-                'var span = document.createElement("span");' +
-                'span.id = "ad1";' +
-                'document.body.insertBefore(span, document.body.firstChild);' +
+                '   var span = document.createElement("span");' +
+                '   span.id = "ad1";' +
+                '   document.body.insertBefore(span, document.body.firstChild);' +
                 '},300);' +
                 'setTimeout(function() {setInterval(' +
                     'function() { ' +
@@ -1403,13 +1403,15 @@ function OVVAsset(uid, dependencies) {
                                     'document.body.style.background = "red";' +
                                 '}' +
                             '}' +
-                            'if (window.started === false) {' +
-                                'parent.$ovv.getAssetById("'+id+'")' + '.beaconStarted(window.index);' +
-                                'window.started = true;' +
-                            '}' +
+
                         '}' +
                     '}, 500)' +
-                '},400);';
+                '},400);'+
+                //'if (window.started === false) {' +
+                '   parent.$ovv.getAssetById("'+id+'")' + '.beaconStarted(window.index);';
+                //'   parent.$ovv.getAssetById("'+id+'")' + '.beaconStarted(window.index);' +
+                //'   window.started = true;' +
+                //'}';
 
             document.body.insertBefore(iframe, document.body.firstChild);
         }

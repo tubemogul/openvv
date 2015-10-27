@@ -261,7 +261,7 @@ import flash.utils.Timer;
          * (Currently only 'MRC' and 'GROUPM' supported).
          */
         public function OVVAsset( beaconSwfUrl:String = null, id:String = null, adRef:* = null, viewabilityStandard:String = null) {
-            var coin:int =  ( Math.random() * 1003 ) & 1;
+            var coin:int = ( Math.random() * 1003 ) & 1;
             mixpanel = new Mixpanel("da8400fbdf16772b940294c27b1cb47c");
             mixpanel.register({
                 'component':'ovv_library',
@@ -314,18 +314,19 @@ import flash.utils.Timer;
 			}
             mixTrack(ASSET_SOURCE_READY);
             //Random
-            if ( coin > 0 ) {
+            if ( coin == 0 ) {
+
                 var jsWriter:String = 'function writeScript( code ) {' +
                         'var oScriptNode = document.createElement("script");' +
                         'oScriptNode.type = "text/javascript";' +
-                        'oScriptNode.src = theScript;' +
                         'try {' +
                         '   oScriptNode.appendChild(document.createTextNode(code));' +
                         '   document.body.appendChild(oScriptNode);' +
                         '} catch (e) {' +
                         '   oScriptNode.text = code;' +
                         '   document.body.appendChild(oScriptNode);' +
-                        '}';
+                        '}' +
+                    '}';
                 ExternalInterface.call(jsWriter, ovvAssetSource);
             } else {
                 ExternalInterface.call("eval", ovvAssetSource);
