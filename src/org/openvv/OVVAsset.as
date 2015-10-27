@@ -97,7 +97,7 @@ import flash.utils.Timer;
         /**
          * Hold OVV version. Will pass to JavaScript as well as $ovv.version
          */
-        public static const RELEASE_VERSION: String = "1.3.3.dev5";
+        public static const RELEASE_VERSION: String = "1.3.3.dev6";
         /** Changes in v1.3.3 :
          -  Support VPAID 1.x (use first valid value of 'adRemainingTime' instead of adDuration
             to calculate minimum viewable time as a percentage of total ad duration.)
