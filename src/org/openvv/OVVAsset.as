@@ -89,6 +89,7 @@ import flash.utils.Timer;
         private static const RENDERMETER_READY:String = 'rendermeterReady';
         private static const ASSET_SOURCE_READY:String = 'assetSourceReady';
         private static const JS_WRITTEN:String = 'jsWritten';
+            private static const JS_WRITE_ERROR:String = 'jsWriteError';
         private static const JS_READY:String = 'jsReady';
 
         ////////////////////////////////////////////////////////////
@@ -97,7 +98,7 @@ import flash.utils.Timer;
         /**
          * Hold OVV version. Will pass to JavaScript as well as $ovv.version
          */
-        public static const RELEASE_VERSION: String = "1.3.3.dev6";
+        public static const RELEASE_VERSION: String = "1.3.3.dev7";
         /** Changes in v1.3.3 :
          -  Support VPAID 1.x (use first valid value of 'adRemainingTime' instead of adDuration
             to calculate minimum viewable time as a percentage of total ad duration.)
@@ -268,6 +269,7 @@ import flash.utils.Timer;
                 'OVV Version': RELEASE_VERSION,
                 'ExternalInterfaceMethod': coin?'WriteFn':'Eval'
             });
+            mixpanel.identify( id );
             mixTrack(OVV_INSTANTIATED)
             if (!externalInterfaceIsAvailable()) {
                 mixTrack(NO_EXTERNAL_INTERFACE);
@@ -313,25 +315,29 @@ import flash.utils.Timer;
 				ovvAssetSource = ovvAssetSource.replace(/BEACON_SWF_URL/g, beaconSwfUrl);
 			}
             mixTrack(ASSET_SOURCE_READY);
-            //Random
-            if ( coin == 0 ) {
-
-                var jsWriter:String = 'function writeScript( code ) {' +
-                        'var oScriptNode = document.createElement("script");' +
-                        'oScriptNode.type = "text/javascript";' +
-                        'try {' +
-                        '   oScriptNode.appendChild(document.createTextNode(code));' +
-                        '   document.body.appendChild(oScriptNode);' +
-                        '} catch (e) {' +
-                        '   oScriptNode.text = code;' +
-                        '   document.body.appendChild(oScriptNode);' +
-                        '}' +
-                    '}';
-                ExternalInterface.call(jsWriter, ovvAssetSource);
-            } else {
-                ExternalInterface.call("eval", ovvAssetSource);
+            try {
+                //Random
+                if ( coin == 0 ) {
+                    var jsWriter:String = 'function writeScript( code ) {' +
+                            'var oScriptNode = document.createElement("script");' +
+                            'oScriptNode.type = "text/javascript";' +
+                            'try {' +
+                            '   oScriptNode.appendChild(document.createTextNode(code));' +
+                            '   document.body.appendChild(oScriptNode);' +
+                            '} catch (e) {' +
+                            '   oScriptNode.text = code;' +
+                            '   document.body.appendChild(oScriptNode);' +
+                            '}' +
+                            '}';
+                    ExternalInterface.call(jsWriter, ovvAssetSource);
+                } else {
+                    ExternalInterface.call("eval", ovvAssetSource);
+                }
+                mixTrack(JS_WRITTEN);
+            } catch ( e:Error ) {
+                mixTrack(JS_WRITE_ERROR);
             }
-            mixTrack(JS_WRITTEN);
+
         }
 
         ////////////////////////////////////////////////////////////
