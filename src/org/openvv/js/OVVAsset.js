@@ -15,6 +15,99 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
+window.mixTrack = function(eventName, ovvid ) {
+    try {
+        var mixTrackUrl = 'https://api.mixpanel.com/track/?data=',
+            browserName,
+            browserVersion;
+        try {
+            var browserData = new OVVBrowser(navigator.userAgent);
+            browserName = browserData.getBrowser().name;
+            browserVersion = browserData.getBrowser().name + ' ' + browserData.getBrowser().version;
+        } catch ( e ) {
+            browserName = 'UNKNOWN';
+            browserVersion = 'UNKNOWN';
+        }
+        if ( !window['ovvInstanceCount'] ) {
+            window.ovvInstanceCount = 0;
+        }
+        window.ovvInstanceCount++;
+        var mixData = {
+            "event": eventName,
+            "properties": {
+                "distinct_id": ovvid,
+                "token": "da8400fbdf16772b940294c27b1cb47c",
+                'component': 'ovv_js',
+                'OVV Version': 'OVVRELEASEVERSION', //Replaced by Flash
+                'ip': 1,
+                'Browser Version': browserVersion,
+                'Browser': browserName,
+                'ovvJsInstanceCount': window.ovvInstanceCount,
+                'time': ( new Date().getTime() / 1000 )
+            }
+        };
+
+        try {
+            // Create Base64 Object for sucky IE8 and IE9
+            var Base64 = {
+                _keyStr: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=",
+                encode: function (e) {
+                    var t = "";
+                    var n, r, i, s, o, u, a;
+                    var f = 0;
+                    e = Base64._utf8_encode(e);
+                    while (f < e.length) {
+                        n = e.charCodeAt(f++);
+                        r = e.charCodeAt(f++);
+                        i = e.charCodeAt(f++);
+                        s = n >> 2;
+                        o = (n & 3) << 4 | r >> 4;
+                        u = (r & 15) << 2 | i >> 6;
+                        a = i & 63;
+                        if (isNaN(r)) {
+                            u = 64;
+                            a = 64;
+                        } else if (isNaN(i)) {
+                            a = 64;
+                        }
+                        t = t + this._keyStr.charAt(s) + this._keyStr.charAt(o) + this._keyStr.charAt(u) + this._keyStr.charAt(a)
+                    }
+                    return t
+                },
+                _utf8_encode: function (e) {
+                    e = e.toString().split(String.fromCharCode(13) + String.fromCharCode(10)).join(String.fromCharCode(10));
+                    var t = "";
+                    for (var n = 0; n < e.length; n++) {
+                        var r = e.charCodeAt(n);
+                        if (r < 128) {
+                            t += String.fromCharCode(r)
+                        } else if (r > 127 && r < 2048) {
+                            t += String.fromCharCode(r >> 6 | 192);
+                            t += String.fromCharCode(r & 63 | 128)
+                        } else {
+                            t += String.fromCharCode(r >> 12 | 224);
+                            t += String.fromCharCode(r >> 6 & 63 | 128);
+                            t += String.fromCharCode(r & 63 | 128)
+                        }
+                    }
+                    return t
+                }
+            }
+            var mixDataEncoded = Base64.encode(JSON.stringify(mixData));
+            console.log( 'Base64 Encoded: ' + mixDataEncoded );
+        } catch ( e ) {
+            var mixDataEncoded = btoa(JSON.stringify(mixData));// btoa is not compatible with ie8, ie9
+        }
+        var img = document.createElement('img');
+        img.src = mixTrackUrl + mixDataEncoded + '&img=1';
+        document.body.insertBefore(img, document.body.firstChild);
+    } catch ( e ) {
+        //
+    }
+}
+window.mixTrack('ovvJsStarted','OVVID');
+
+
 /**
  * A container for all OpenVV instances running on the page
  * @class
@@ -38,92 +131,6 @@ function OVV() {
     */
     this.DEBUG = false;
 
-    this.mixTrack = function(eventName) {
-        try {
-            var mixTrackUrl = 'http://api.mixpanel.com/track/?data=',
-                browserName,
-                browserVersion;
-            try {
-                var browserData = new OVVBrowser(window.testOvvConfig && window.testOvvConfig.userAgent ? window.testOvvConfig.userAgent : navigator.userAgent);
-                browserName = browserData.getBrowser().name;
-                browserVersion = browserData.getBrowser().name + ' ' + browserData.getBrowser().version;
-            } catch ( e ) {
-                browserName = 'UNKNOWN';
-                browserVersion = 'UNKNOWN';
-            }
-
-            var mixData = {
-                "event": eventName,
-                "properties": {
-                    "distinct_id": 'OVVID', //Replaced by Flash
-                    "token": "da8400fbdf16772b940294c27b1cb47c",
-                    'component': 'ovv_js',
-                    'OVV Version': 'OVVRELEASEVERSION', //Replaced by Flash
-                    'Browser Version': browserVersion,
-                    'Browser': browserName,
-                    'Time': ( new Date().getTime() / 1000 )
-                }
-            };
-
-            try {
-                // Create Base64 Object for sucky IE8 and IE9
-                var Base64 = {
-                    _keyStr: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=",
-                    encode: function (e) {
-                        var t = "";
-                        var n, r, i, s, o, u, a;
-                        var f = 0;
-                        e = Base64._utf8_encode(e);
-                        while (f < e.length) {
-                            n = e.charCodeAt(f++);
-                            r = e.charCodeAt(f++);
-                            i = e.charCodeAt(f++);
-                            s = n >> 2;
-                            o = (n & 3) << 4 | r >> 4;
-                            u = (r & 15) << 2 | i >> 6;
-                            a = i & 63;
-                            if (isNaN(r)) {
-                                u = 64;
-                                a = 64;
-                            } else if (isNaN(i)) {
-                                a = 64;
-                            }
-                            t = t + this._keyStr.charAt(s) + this._keyStr.charAt(o) + this._keyStr.charAt(u) + this._keyStr.charAt(a)
-                        }
-                        return t
-                    },
-                    _utf8_encode: function (e) {
-                        e = e.toString().split(String.fromCharCode(13) + String.fromCharCode(10)).join(String.fromCharCode(10));
-                        var t = "";
-                        for (var n = 0; n < e.length; n++) {
-                            var r = e.charCodeAt(n);
-                            if (r < 128) {
-                                t += String.fromCharCode(r)
-                            } else if (r > 127 && r < 2048) {
-                                t += String.fromCharCode(r >> 6 | 192);
-                                t += String.fromCharCode(r & 63 | 128)
-                            } else {
-                                t += String.fromCharCode(r >> 12 | 224);
-                                t += String.fromCharCode(r >> 6 & 63 | 128);
-                                t += String.fromCharCode(r & 63 | 128)
-                            }
-                        }
-                        return t
-                    }
-                }
-                var mixDataEncoded = Base64.encode(JSON.stringify(mixData));
-                console.log( 'Base64 Encoded: ' + mixDataEncoded );
-            } catch ( e ) {
-                var mixDataEncoded = btoa(JSON.stringify(mixData));// btoa is not compatible with ie8, ie9
-            }
-            var img = document.createElement('img');
-            img.src = mixTrackUrl + mixDataEncoded + '&img=1';
-            document.body.insertBefore(img, document.body.firstChild);
-        } catch ( e ) {
-            //
-        }
-    }
-    this.mixTrack('ovvJsStarted');
     /**
      * Whether OpenVV is running within an iframe or not.
      * @type {Boolean}
@@ -157,7 +164,7 @@ function OVV() {
     };
 
     this.servingScenario = getServingScenarioType(this.servingScenarioEnum);
-    this.mixTrack( 'servingScenarioSet' );
+    window.mixTrack( 'servingScenarioSet','OVVID' );
     this.IN_XD_IFRAME =  (this.servingScenario == this.servingScenarioEnum.CrossDomainIframe);
 
     // Temporarily restore beacon testing for same-domain iframes: Iframe geometry calculation is broken
@@ -731,7 +738,7 @@ function OVVBeaconSupportCheck()
 * @param {String} uid - The unique identifier of this asset
 */
 function OVVAsset(uid, dependencies) {
-
+    window.mixTrack('ovvNewJsOvvAsset', uid);
     ///////////////////////////////////////////////////////////////////////////
     // CONSTANTS
     ///////////////////////////////////////////////////////////////////////////
@@ -1077,17 +1084,17 @@ function OVVAsset(uid, dependencies) {
         beaconsStarted++;
         if (beaconsStarted == 1 ) {  //Only track the first beacon (if one works, they all do)
             if ( !!window.mozPaintCount ){
-                window.$ovv.mixTrack('mozPaint' + beaconsStarted );
+                window.mixTrack('mozPaint' + beaconsStarted,'OVVID' );
             } else {
-                window.$ovv.mixTrack('beacon' + beaconsStarted );
+                window.mixTrack('beacon' + beaconsStarted,'OVVID' );
             }
         }
 
         if (beaconsReady()) {
             if ( !!window.mozPaintCount ){
-                window.$ovv.mixTrack('mozPaintReady');
+                window.mixTrack('mozPaintReady','OVVID');
             } else {
-                window.$ovv.mixTrack('beaconsReady');
+                window.mixTrack('beaconsReady','OVVID');
             }
             player['onJsReady' + uid]();
         }
@@ -1701,30 +1708,30 @@ function OVVAsset(uid, dependencies) {
     };
 
     player = findPlayer();
-    window.$ovv.mixTrack('playerFound');
+    window.mixTrack('playerFound','OVVID');
 
     // only use the beacons if geometry is not supported, or we we are in DEBUG mode.
     if ($ovv.geometrySupported == false || $ovv.DEBUG) {
         //if ($ovv.browser.ID === $ovv.browserIDEnum.Firefox){
         if ( !!window.mozPaintCount ) { //I don't trust the browser detection
-            window.$ovv.mixTrack('mozPaint');
+            window.mixTrack('mozPaint','OVVID');
             //Use frame technique to measure viewability in cross domain FF scenario
             getBeaconFunc = getFrameBeacon;
             getBeaconContainerFunc = getFrameBeaconContainer;
             createFrameBeacons.bind(this)();
         }
         else {
-            window.$ovv.mixTrack('beacons');
+            window.mixTrack('beacons','OVVID');
             getBeaconFunc = getFlashBeacon;
             getBeaconContainerFunc = getFlashBeaconContainer;
             // 'BEACON_SWF_URL' is String substituted from ActionScript
             createBeacons.bind(this)('BEACON_SWF_URL');
         }
     } else if (player && player['onJsReady' + uid]) {
-        window.$ovv.mixTrack('geometry');
+        window.mixTrack('geometry','OVVID');
         // since we don't have to wait for beacons to be ready, we're ready now
         setTimeout(function () {
-            window.$ovv.mixTrack('geometryReady');
+            window.mixTrack('geometryReady','OVVID');
             player['onJsReady' + uid]()
         }, 5); //Use a tiny timeout to keep this async like the beacons
     }
@@ -1989,7 +1996,10 @@ Function.prototype.memoize = function() {
     }
 };
 // initialize the OVV object if it doesn't exist
-window.$ovv = window.$ovv || new OVV();
+if ( !!window['$ovv'] ) {
+    window.mixTrack('ovvObjectExists', 'OVVID' );
+}
+window.$ovv = window['$ovv'] || new OVV();
 
 // 'OVVID' is String substituted from AS
 window.$ovv.addAsset(new OVVAsset('OVVID', { geometryViewabilityCalculator: new OVVGeometryViewabilityCalculator() }));

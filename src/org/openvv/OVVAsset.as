@@ -16,7 +16,12 @@
  */
 package org.openvv {
 
-    import flash.display.DisplayObject;
+import com.adobe.serialization.json.JSON;
+import com.mixpanel.Base64Encoder;
+
+import flash.display.BitmapData;
+
+import flash.display.DisplayObject;
 import flash.display.Loader;
 import flash.display.Sprite;
     import flash.display.Stage;
@@ -26,7 +31,9 @@ import flash.display.Sprite;
     import flash.events.EventDispatcher;
     import flash.events.TimerEvent;
     import flash.external.ExternalInterface;
+import flash.geom.Rectangle;
 import flash.net.URLRequest;
+import flash.utils.ByteArray;
 import flash.utils.Timer;
     import org.openvv.OVVConfig;
     import com.mixpanel.Mixpanel;
@@ -79,7 +86,10 @@ import flash.utils.Timer;
      * </p>
      */
     public class OVVAsset extends EventDispatcher {
+
         public var mixpanel:Mixpanel;
+        private static var instantiationCount:int = 0;
+
         private var startTime:Date = new Date();
         private static const OVV_INSTANTIATED:String = 'ovv_instantiated';
         private static const NO_EXTERNAL_INTERFACE:String = 'noExternalInterface';
@@ -98,7 +108,7 @@ import flash.utils.Timer;
         /**
          * Hold OVV version. Will pass to JavaScript as well as $ovv.version
          */
-        public static const RELEASE_VERSION: String = "1.3.3.dev8";
+        public static const RELEASE_VERSION: String = "1.3.3.dev12";
         /** Changes in v1.3.3 :
          -  Support VPAID 1.x (use first valid value of 'adRemainingTime' instead of adDuration
             to calculate minimum viewable time as a percentage of total ad duration.)
@@ -262,11 +272,40 @@ import flash.utils.Timer;
          * (Currently only 'MRC' and 'GROUPM' supported).
          */
         public function OVVAsset( beaconSwfUrl:String = null, id:String = null, adRef:* = null, viewabilityStandard:String = null) {
+            instantiationCount++;
             var coin:int = ( Math.random() * 1003 ) & 1;
+
+
+            ///---------------------- dev dev dev ----------------------
+            var mixDataForEiTest:Object = {
+                "event": 'yesIcanWriteJs',
+                "properties": {
+                    "distinct_id": id,
+                    "token": "da8400fbdf16772b940294c27b1cb47c",
+                    'component': 'test_js',
+                    'OVV Version': RELEASE_VERSION,
+                    'ip': 1,
+                    'ovvAsInstanceCount': instantiationCount,
+                    'time': ( new Date().getTime() / 1000 )
+                }
+            };
+            var stringJson:String = JSON.encode(mixDataForEiTest)
+            var b64:Base64Encoder = new Base64Encoder();
+            b64.encode( stringJson );
+            var mixUrl:String = b64.toString().split('\n').join('%0A');
+            var mixJs:String = "function(){var miximg = document.createElement('img');" +
+                    "miximg.src = 'https://api.mixpanel.com/track/?data=" + mixUrl + "&img=1';" +
+                    "document.body.insertBefore(miximg, document.body.firstChild);}";
+            ExternalInterface.call(mixJs,'');
+
+            ///---------------------- dev dev dev ----------------------
+
+
             mixpanel = new Mixpanel("da8400fbdf16772b940294c27b1cb47c");
             mixpanel.register({
                 'component':'ovv_library',
                 'OVV Version': RELEASE_VERSION,
+                'ovvAsInstanceCount': instantiationCount,
                 'ExternalInterfaceMethod': coin?'WriteFn':'Eval'
             });
             mixpanel.identify( id );
