@@ -55,7 +55,7 @@ function TM_OVV() {
      */
     this.positionInterval;
 
-    // this.userAgent = window.testOvvConfig && window.testOvvConfig.userAgent ? window.testOvvConfig.userAgent : navigator.userAgent;
+    this.userAgent = window.testOvvConfig && window.testOvvConfig.userAgent ? window.testOvvConfig.userAgent : navigator.userAgent;
 
     this.servingScenarioEnum = { OnPage: 1, SameDomainIframe: 2, CrossDomainIframe: 3 };
 
@@ -535,7 +535,7 @@ function TM_OVVBrowser()
      * Returns an object that contains the browser name, version, id and os if applicable
      * @param {String} ua userAgent
      */
-    function getBrowserDetailsByUserAgent(t) {
+    function getBrowserDetailsByUserAgent() {
 
         var getData = function () {
             var data = { ID: 0, name: '', version: '' };
@@ -1286,7 +1286,7 @@ function TM_OVVAsset(uid, dependencies) {
         }
 	   */
 
-	      url = "//playtime.tubemogul.com/flash/TM_OVVBeacon.swf";
+	    url = "//playtime.tubemogul.com/flash/TM_OVVBeacon.swf";
 
         for (var index = 0; index <= TOTAL_BEACONS; index++) {
 
@@ -1890,6 +1890,7 @@ window.$tm_ovv = window.$tm_ovv || new TM_OVV();
 window.$tm_ovv_asset = new TM_OVVAsset('OVVID', { geometryViewabilityCalculator: new TM_OVVGeometryViewabilityCalculator() });
 window.$tm_ovv.addAsset(window.$tm_ovv_asset);
 
-// window.$ovv = window.$ovv || new TM_OVV();
-// window.$ovv.addAsset(window.$tm_ovv_asset);
+// THis is to make the $tm_ovv_asset discoverable to 3rd party auditors subscribing to OpenVV events
+window.$ovv = window.$ovv || new TM_OVV();
+window.$ovv.addAsset(window.$tm_ovv_asset);
 
