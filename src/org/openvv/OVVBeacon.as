@@ -190,7 +190,7 @@ package org.openvv {
             ExternalInterface.addCallback("getFrameRate", getFrameRate);
 
             if (_id && _index) {
-                ExternalInterface.call("$ovv.getAssetById('" + _id + "')" + ".beaconStarted", _index);
+                ExternalInterface.call("tm_$ovv.getAssetById('" + _id + "')" + ".beaconStarted", _index);
             }
         }
 
