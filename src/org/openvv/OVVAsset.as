@@ -83,7 +83,10 @@ package org.openvv {
         /**
          * Hold OVV version. Will pass to JavaScript as well as $ovv.version
          */
-        public static const RELEASE_VERSION: String = "1.4.0";
+        public static const RELEASE_VERSION: String = "1.4.1";
+        /** Changes in v1.4.1 :
+         *  Add Audit capability to isolated  ovv by adding asset to $ovv instance (created if necessary)
+         */
         /** Changes in v1.4.0 :
          *  Customized to isolate from all other OpenVV instances in same window
          */
