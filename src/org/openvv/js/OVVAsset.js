@@ -1891,6 +1891,6 @@ window.$tm_ovv_asset = new TM_OVVAsset('OVVID', { geometryViewabilityCalculator:
 window.$tm_ovv.addAsset(window.$tm_ovv_asset);
 
 // THis is to make the $tm_ovv_asset discoverable to 3rd party auditors subscribing to OpenVV events
-window.$ovv = window.$ovv || new TM_OVV();
-window.$ovv.addAsset(window.$tm_ovv_asset);
+// window.$ovv = window.$ovv || new TM_OVV();
+// window.$ovv.addAsset(window.$tm_ovv_asset);
 
