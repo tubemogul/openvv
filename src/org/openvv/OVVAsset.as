@@ -90,10 +90,14 @@ package org.openvv {
         /**
          * Hold OVV version. Will pass to JavaScript as well as $ovv.version
          */
-        public static const RELEASE_VERSION: String = "1.3.11";
+        public static const RELEASE_VERSION: String = "1.3.12";
+        /** Changes in v1.3.12 :
+         * UD-2034 : Keep querying and logging viewability state in impression interval handler after raising impression
+         * (critical for DV JS tag integration )
+         */
         /** Changes in v1.3.11 :
          * UD-1947 : Removed asset id decoration after receiving it in Constructor (critical for DV
-         * JS tag integration ) 
+         * JS tag integration )
          */
         /** Changes in v1.3.10 :
          * Created namespaced version of OVV global classes that could conflict with 3rd party ads implementing OpenVV
@@ -634,7 +638,7 @@ package org.openvv {
 
 			raiseLog(results);
 
-            if (_isPaused == false) {
+            if (_isPaused == false && _impressionEventRaised == null) {
                 if ( OVVConfig.viewability[standard].min_viewable_time_pc != null && _validDurationReported == false ) {
                     // May change during the course of the ad so update with each poll.
                     updateThresholdByPercentDuration();
@@ -655,19 +659,15 @@ package org.openvv {
                     _intervalsInView = 0;
                 }
 
-                if ( _impressionEventRaised == null ) {
-                    if ( _intervalsInView >= VIEWABLE_IMPRESSION_THRESHOLD) {
-                        _impressionEventRaised = OVVEvent.OVVImpression;
-                    }else if (_intervalsUnMeasurable >= UNMEASURABLE_IMPRESSION_THRESHOLD ) {
-                        _impressionEventRaised = OVVEvent.OVVImpressionUnmeasurable;
-                    }
-                    if (!!_impressionEventRaised){
-                        stopImpressionTimer();
-                        dispatchEvent(new OVVEvent(_impressionEventRaised, results));
-                    }
+                if ( _intervalsInView >= VIEWABLE_IMPRESSION_THRESHOLD) {
+                    _impressionEventRaised = OVVEvent.OVVImpression;
+                }else if (_intervalsUnMeasurable >= UNMEASURABLE_IMPRESSION_THRESHOLD ) {
+                    _impressionEventRaised = OVVEvent.OVVImpressionUnmeasurable;
+                }
+                if (!!_impressionEventRaised){
+                    dispatchEvent(new OVVEvent(_impressionEventRaised, results));
                 }
             }
-
         }
 
         private function volumeOk(results:Object):Boolean {
