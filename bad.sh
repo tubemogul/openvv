@@ -1,7 +1,7 @@
 export FLEX_HOME=/Applications/Adobe\ Flash\ Builder\ 4.7/sdks/4.5.0
 export ANT_HOME=/Applications/Ant
 export OVV_LIB=/Users/steve.thorpe/Documents/git/sourcetree/openvv/bin/openvv.swc
-export AD_LIB=/Users/steve.thorpe/Documents/git/sourcetree/adunit/src
+export AD_LIB=/Users/steve.thorpe/Sites/dev/universal-demand/flash_ad_unit/libs
 export DEBUG_OVV=true
 chmod 777 ./build.sh
 ./build.sh

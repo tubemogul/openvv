@@ -138,7 +138,8 @@ package org.openvv {
         /**
          * The Viewability Standard to be applied. Currently only "MRC" and "GROUPM" supported.
          */
-        private static var standard:String = "MRC"; // initialize to default standard
+        private var standard:String = null;
+        private var browser:String = null;
 
         /**
          * The number of 'checkViewability()' polls, returning a result with viewableState == VIEWABLE
@@ -270,40 +271,43 @@ package org.openvv {
 
 
        private var initErrorReason:String = null;
-
-        private var configJs:Object = null;
-        ////////////////////////////////////////////////////////////
-        //   CONSTRUCTOR
-        ////////////////////////////////////////////////////////////
-
         /**
-         * Generates a random ID for this asset. Creates JavaScript
-         * callbacks, starts the RenderMeter and sets up ThrottleEvent
-         * listeners, and initializes the JavaScript portion of OpenVV.
-         *
-         * @param beaconSwfUrl The fully qualified URL of OVVBeacon.swf for
-         * OpenVV to use. For example, "http://localhost/OVVBeacon.swf". If
-         * not supplied, the "beacon" method for detecting viewability will
-         * be unavailable.
-         * @param id The unique identifier of this OVVAsset. If not supplied,
-         * it will be randomly generated.
+         ////////////////////////////////////////////////////////////
+         //   CONSTRUCTOR
+         ////////////////////////////////////////////////////////////
+         /**
+         * @param config {Object}
+         * {
+         *      beaconSwfUrl:   [ flash beacon URL. eg : "http://localhost/OVVBeacon.swf"]
+         *      vpaidAd:        [ A reference to the vpaid object.]
+         *      standard:       [ One of "MRC" or "GROUPM". Default "MRC"]
+         *      browser:        [:#: The Browser name, detected by the Flash Ad Unit]
+         * }
+         * :#: : If supplied, will override browser detection in OVVAsset.js :
+         * @param id The unique identifier of this OVVAsset.
          * @param adRef A reference to the top DisplayObject of the ad; used
          * to determine full-screen status when player's stage is not available.
          * Optional only for backwards compatibility.
-         * @param viewabilityStandard /the viewability Standard to be applied to
-         * determine if a Viewable Impression should be fired.
-         * (Currently only 'MRC' and 'GROUPM' supported).
+         * @param viewabilityStandard : unused if supplid in config object. Included for backward compatibity
          */
-        public function OVVAsset( beaconSwfUrl:String = null, id:String = null, adRef:* = null, viewabilityStandard:String = null) {
+        public function OVVAsset(config:Object, id:String = null, adRef:* = null, viewabilityStandard:String = null ) {
             if (!externalInterfaceIsAvailable()) {
                 _jsInitError = OVVCheck.INFO_ERROR_NO_EXTERNAL_INTERFACE;
                 raiseError({error:_jsInitError}, true); // delay dispatch for ad unit to add listener
                 return;
             }
-            if (viewabilityStandard == null) {
-                standard = OVVConfig.default_standard;
-            }else{
+            var beaconSwfUrl:String = "";
+            if (typeof config['beaconSwfUrl'] == 'string') {
+                beaconSwfUrl = config.beaconSwfUrl;
+                _vpaidAd = config.vpaidAd;
+                standard = config.standard;
+                browser = config.browser;
+            } else {
+                beaconSwfUrl = String(config); //  backward-compatible  - legacy API
                 standard = viewabilityStandard;
+            }
+            if ( !standard ) {
+                standard = OVVConfig.default_standard;
             }
 
             // DO NOT MODIFY 'id' if non-null. DoubleVerify param, 'adid' is set to this value if DV pixel present
@@ -314,11 +318,13 @@ package org.openvv {
             }
             setStage();
             ////////  ????  ///////////////
+            if (_vpaidAd == null && (Object)(adRef).hasOwnProperty('getVPAID') && adRef['getVPAID']  is Function) {
+                _vpaidAd = (Object)(adRef).getVPAID();
+            }
 
             ExternalInterface.addCallback(_id, flashProbe);
             ExternalInterface.addCallback("onJsReady" + _id, onJsReady);
             ExternalInterface.addCallback("trace", jsTrace);
-            ExternalInterface.addCallback("getOS", getOS);
 
             _sprite = new Sprite();
             _renderMeter = new OVVRenderMeter(_sprite);
@@ -326,12 +332,15 @@ package org.openvv {
 
             var ovvAssetSource:String = "{{OVVAssetJS}}";
 
+            Debug.trace("@@@@ browser " + browser)
+
             ovvAssetSource = ovvAssetSource
                                 .replace(/OVVID/g, _id)
                                 .replace(/INTERVAL/g, OVVConfig.viewability[standard].poll_interval_ms)
                                 .replace(/MIN_VIEW_AREA_PC/g, OVVConfig.viewability[standard].min_viewable_area_pc)
                                 .replace(/OVVBUILDVERSION/g, _buildVersion)
-								.replace(/OVVRELEASEVERSION/g, RELEASE_VERSION);
+								.replace(/OVVRELEASEVERSION/g, RELEASE_VERSION)
+                                .replace(/ENV_BROWSER/g, browser );
 
 		    if (beaconSwfUrl)
 			{
@@ -524,16 +533,12 @@ package org.openvv {
             return;
         }
 
-        public function getOS():String {
-            return Capabilities.os;
-        }
-
         /**
          * When the JavaScript portion of OpenVV is ready and the beacons have loaded (if needed),
          * this function is called so that the ad can wait for the beacons to load before dispatching AdLoaded
          */
         public function onJsReady():void {
-            trace("JS READY!")
+            Debug.trace( "@@@ JS READY!!!!!!" );
             jsReady = true;
             if (adStarted) {
                 startImpressionTimer();
@@ -542,7 +547,7 @@ package org.openvv {
         }
 
         public function jsTrace(obj:Object):void {
-            // Debug.traceObj(obj);
+            Debug.traceObj(obj);
         }
 
         /**
@@ -715,7 +720,7 @@ package org.openvv {
         }
 
         /**
-         * The randomly generated unique identifier of this asset
+         * The unique identifier of this asset
          */
         public function get id(): String {
             return _id;
