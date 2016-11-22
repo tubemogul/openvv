@@ -6,6 +6,10 @@ package com.tubemogul.util
 		private static var arrIndent:Array = [];
 		private static var indent:String = "";
 
+        public static function setPrefix(str:String):void{
+            Trace.setPrefix(str);
+        }
+
 		public static function objToString(prop:*, name:String="Object"):String
 		{
 			Trace.initObjToString(name);
@@ -28,7 +32,7 @@ package com.tubemogul.util
 				var riser:String = "|";
 				var spaces:String = "   ";
 
-				switch( typeof(prop) )
+				switch( typeof(prop) ) 
 				{
 					case 'string':
 						traceAndPad(name, '"'+prop+'"');
@@ -158,7 +162,7 @@ package com.tubemogul.util
 						}
 						Trace.doTrace(str);
 					}else{
-						Trace.doTrace(caller);
+						Trace.doTrace('!---TRACE CALL---! ' + caller);
 					}
 				}
 			}
@@ -166,10 +170,17 @@ package com.tubemogul.util
 
 }
 
+import flash.external.ExternalInterface;
+
 // Internal class to allow Debug class to use the name "trace" for a static method, for more intuitive use.
 internal class Trace{
 	private static var startTime:Number = 0;
 	private static var retStr:String = null;
+    private static var linePrefix:String;
+
+    internal static function setPrefix(str:String):void{
+        linePrefix = str;
+    }
 
 	internal static function initObjToString(name:String):void
 	{
@@ -201,6 +212,7 @@ internal class Trace{
 			// Use a prefix, with elapsed time, for filtering in debug trace viewer (eg Vizzy)
 			var prefix:String = "TM-TRACE-OVV [" + ((mins<10)?"0":"") + mins + ":" + ((secs<10)?"0":"") + secs + "] ";
 			trace(prefix + str);
+			ExternalInterface.call('console.log', prefix + str);
 		}
 	}
 }
