@@ -66,6 +66,8 @@
 
     this.userAgent = window.testOvvConfig && window.testOvvConfig.userAgent ? window.testOvvConfig.userAgent : navigator.userAgent;
 
+    this.intersectionObserverSupported = typeof window['IntersectionObserver'] == 'function';
+
     this.servingScenarioEnum = { OnPage: 1, SameDomainIframe: 2, CrossDomainIframe: 3 };
      ///////////////////////////////////////////////////////////////////////////////////////////////////////
      /////////////////////////////                                          ////////////////////////////////
@@ -534,6 +536,7 @@ function OVVBeaconSupportCheck()
  // (Asset must register its instance on existing or new instance of global IAB  OVV class)
  function NS() {
      this.OVV = function () {
+         console.log('@@@@@ : NSOVV')
          this.DEBUG = false;
 
          this.IN_IFRAME = window != window.top;
@@ -550,32 +553,50 @@ function OVVBeaconSupportCheck()
          function getIframeType() {
              try {
                  if (window.top == window) {
-                     return "NONE";
+                     return 'NONE';
                  }
                  var curWin = window;
                  var level=0;
                  while(curWin.parent !== curWin  && level<1000){
                      if (curWin.parent.document.domain !== curWin.document.domain) {
-                         return "XD";
+                         return 'XD';
                      }
                      curWin = curWin.parent;
                      level++;
                  }
-                 return "SD";
+                 return 'SD';
              } catch (e) { }
-             return "XD";
+             return 'XD';
          }
 
          switch (getIframeType()){
-             case "SD" :
+             case 'SD' :
                  this.IN_SD_IFRAME = true;
                  break;
-             case "XD" :
+             case 'XD' :
                  this.IN_XD_IFRAME = true;
                  break;
          }
 
+         try {
+             this.envBrowser = 'ENV_BROWSER';
+             console.log ('@@@@ : this.envBrowser : ' + this.envBrowser );
+         }catch(e){
+             console.log ('@@@@ : this.envBrowser : Error !!!!!' );
+         }
+
+         //this.geometrySupported = !this.IN_XD_IFRAME; // DO we want to resume using geometry for same-domain frames?
          this.geometrySupported = !this.IN_IFRAME; // DO we want to resume using geometry for same-domain frames?
+
+         this.intersectionObserverSupported = typeof window['IntersectionObserver'] == 'function';
+
+         this.frameBeaconsSupported = (typeof window['mozPaintCount'] == 'number');
+
+         // ||     ( ( this.envBrowser == 'safari' ) && ( typeof window['requestAnimationFrame'] == 'function') );
+
+         console.log ('@@@@ : geometrySupported : ' + this.geometrySupported);
+         console.log ('@@@@ : intersectionObserverSupported : ' + this.intersectionObserverSupported);
+         console.log ('@@@@ : frameBeaconsSupported : ' + this.frameBeaconsSupported);
 
          /**
           * The last asset added to OVV. Useful for easy access from the
@@ -679,6 +700,9 @@ function OVVBeaconSupportCheck()
          */
         this.geometrySupported = null;
 
+        this.intersectionObserverSupported = null;
+
+        this.frameBeaconsSupported = null;
         /**
          * The technique used to populate OVVCheck.viewabilityState. Will be either
          * OVV.GEOMETRY when OVV is run in the root page, or OVV.BEACON when OVV is
@@ -802,6 +826,12 @@ function OVVBeaconSupportCheck()
     OVVCheck.BEACON = 'beacon';
 
     /**
+     * When OVVCheck.technique is set to INTERSECTION_OBSERVER, the IntersectionObserver
+     * was used to determine the viewabilityState
+     */
+    OVVCheck.INTERSECTION_OBSERVER = 'intersection_observer';
+
+    /**
      * When OVVCheck.technique is set to GEOMETRY, the geometry technique
      * was used to determine the viewabilityState
      */
@@ -869,6 +899,7 @@ function OVVBeaconSupportCheck()
     OVVCheck.INFO_TYPE_NOT_VIEWABLE = 'N';
     OVVCheck.INFO_TYPE_UNMEASURABLE = 'U';
 
+    OVVCheck.INFO_METHOD_INTERSECTION_OBSERVER  = 'IO';
     OVVCheck.INFO_METHOD_BROWSER_GEOMETRY  = 'BG';
     OVVCheck.INFO_METHOD_BEACON_FLASH      = 'FB';
     OVVCheck.INFO_METHOD_BEACON_MOZPAINT   = 'MB';
@@ -1088,6 +1119,9 @@ function OVVBeaconSupportCheck()
 
     var geometryViewabilityCalculator = dependencies.geometryViewabilityCalculator;
 
+      var intersectionObserverMonitor;
+
+
     /**
      * hold a reference to a function that get the relevant beacon
      * @type {function}
@@ -1146,7 +1180,9 @@ function OVVBeaconSupportCheck()
         check.id = id;
         check.inIframeSD = $NSs['OVVID'].$ovv.IN_SD_IFRAME;
         check.inIframeXD = $NSs['OVVID'].$ovv.IN_XD_IFRAME;
+        check.intersectionObserverSupported = $NSs['OVVID'].$ovv.intersectionObserverSupported;
         check.geometrySupported = $NSs['OVVID'].$ovv.geometrySupported;
+        check.frameBeaconsSupported = $NSs['OVVID'].$ovv.frameBeaconsSupported;
         setPlayerSize(check);
         check.focus = isInFocus();
 
@@ -1189,8 +1225,29 @@ function OVVBeaconSupportCheck()
 
         // Player is on the active browser tab in an un-minimized browser window and
         // it is not invisible, hidden or obscured.
-        // Try to measure its viewable area using browser geometry:
+        // Try to measure its viewable area ...
         //
+        //
+        // First, use IntersectionObserver, if available
+        //
+
+        if (check.intersectionObserverSupported ) {
+            check.technique = OVVCheck.INTERSECTION_OBSERVER;
+            checkIntersectionObserver(check);
+            if (check.percentViewable >= MIN_VIEW_AREA_PC) {
+                check.viewabilityState = OVVCheck.VIEWABLE;
+                check.viewabilityStateCode = OVVCheck.INFO_TYPE_VIEWABLE;
+                check.viewabilityStateInfo = OVVCheck.INFO_METHOD_INTERSECTION_OBSERVER;
+            } else {
+                check.viewabilityState = OVVCheck.UNVIEWABLE;
+                check.viewabilityStateCode = OVVCheck.INFO_TYPE_NOT_VIEWABLE;
+                check.viewabilityStateInfo = OVVCheck.INFO_METHOD_INTERSECTION_OBSERVER;
+            }
+            return check;
+        }
+
+        // IntersectionObserver not supported :
+        // Use browser geometry, if suported, to determine viewable area of player:
         if (check.geometrySupported) {
             check.technique = OVVCheck.GEOMETRY;
             checkGeometry(check, player);
@@ -1473,8 +1530,19 @@ function OVVBeaconSupportCheck()
         return (x_overlap * y_overlap) / playerArea;
     };
 
+      var checkIntersectionObserver = function(check){
+          check.percentViewable = intersectionObserverMonitor.percentViewable;
+          /*check.clientWidth = intersectionObserverMonitor.viewportRect.width;
+          check.clientHeight = intersectionObserverMonitor.viewportRect.height;
+          check.objTop = intersectionObserverMonitor.targetRect.top;
+          check.objBottom = intersectionObserverMonitor.targetRect.bottom;
+          check.objLeft = intersectionObserverMonitor.targetRect.left;
+          check.objRight = intersectionObserverMonitor.targetRect.right;
+          */
+      };
 
-    /**
+
+      /**
      * Performs the geometry technique to determine viewability. First gathers
      * information on the viewport and on the player. Then compares the two to
      * determine what percentage, if any, of the player is within the bounds
@@ -1641,22 +1709,22 @@ function OVVBeaconSupportCheck()
             swfContainer.style.zIndex = BEACON_ZINDEX;
 
             swfContainer.innerHTML =
-                '<object classid="clsid:D27CDB6E-AE6D-11cf-96B8-444553540000" width="' + BEACON_SIZE + '" height="' + BEACON_SIZE + '">' +
-                '<param name="movie" value="' + url + '" />' +
-                '<param name="quality" value="low" />' +
-                '<param name="flashvars" value="id=' + id + '&index=' + index + '" />' +
-                '<param name="bgcolor" value="#ffffff" />' +
-                '<param name="wmode" value="transparent" />' +
-                '<param name="allowScriptAccess" value="always" />' +
-                '<param name="allowFullScreen" value="false" />' +
+                '<object classid=\"clsid:D27CDB6E-AE6D-11cf-96B8-444553540000\" width=\"' + BEACON_SIZE + '\" height=\"' + BEACON_SIZE + '\">' +
+                '<param name=\"movie\"value=\"' + url + '\"/>' +
+                '<param name=\"quality\"value=\"low\"/>' +
+                '<param name=\"flashvars\"value=\"id=' + id + '&index=' + index + '\"/>' +
+                '<param name=\"bgcolor\"value=\"#ffffff\"/>' +
+                '<param name=\"wmode\"value=\"transparent\"/>' +
+                '<param name=\"allowScriptAccess\"value=\"always\"/>' +
+                '<param name=\"allowFullScreen\"value=\"false\"/>' +
                 '<!--[if !IE]>-->' +
-                '<object id="OVVBeacon_' + index + '_' + id + '" type="application/x-shockwave-flash" data="' + url + '" width="' + BEACON_SIZE + '" height="' + BEACON_SIZE + '">' +
-                '<param name="quality" value="low" />' +
-                '<param name="flashvars" value="id=' + id + '&index=' + index + '" />' +
-                '<param name="bgcolor" value="#ff0000" />' +
-                '<param name="wmode" value="transparent" />' +
-                '<param name="allowScriptAccess" value="always" />' +
-                '<param name="allowFullScreen" value="false" />' +
+                '<object id=\"OVVBeacon_' + index + '_' + id + '\"type=\"application/x-shockwave-flash\"data=\"' + url + '\"width=\"' + BEACON_SIZE + '\"height=\"' + BEACON_SIZE + '\">' +
+                '<param name=\"quality\"value=\"low\"/>' +
+                '<param name=\"flashvars\"value=\"id=' + id + '&index=' + index + '\"/>' +
+                '<param name=\"bgcolor\"value=\"#ff0000\"/>' +
+                '<param name=\"wmode\"value=\"transparent\"/>' +
+                '<param name=\"allowScriptAccess\"value=\"always\"/>' +
+                '<param name=\"allowFullScreen\"value=\"false\"/>' +
                 '<!--<![endif]-->' +
                 '</object>';
 
@@ -1672,12 +1740,80 @@ function OVVBeaconSupportCheck()
         this.positionInterval = setInterval(positionBeacons.bind(this), positionBeaconsIntervalDelay);
     };
 
-    var createFrameBeacons = function() {
+    /*
+     var createFrameBeacons = function() {
+         for (var index = 0; index <= TOTAL_BEACONS; index++) {
+             var iframe = document.createElement('iframe');
+             iframe.name = iframe.id = 'OVVFrame_' + id + '_' + index;
+             iframe.width = BEACON_SIZE; // $ovvs['OVVID'].DEBUG ? 20 : 1;
+             iframe.height = BEACON_SIZE; // $ovvs['OVVID'].DEBUG ? 20 : 1;
+             iframe.frameBorder = 0;
+             iframe.style.position = 'absolute';
+             iframe.style.zIndex = BEACON_ZINDEX;
+             var frameScript = '';
+             var onloadScript = '';
+             if (typeof window['mozPaintCount'] === 'number') {
+                 onloadScript =
+                      'initFrameBeacon(\"' + id + '\", ' + index + ', 0 )';
+             }else{
+                  // Simulate 'mozPaintCount' using 'requestAnimationFrame()'
+                 onloadScript =
+                      'window.mozPaintCount = 0;' +
+                      'var render = function(){' +
+                      '   window.mozPaintCount++; ' +
+                      '   requestAnimationFrame(render.bind(this));' +
+                      '};' +
+                      'render();' +
+                      'initFrameBeacon(' + id + ', ' + index + ', 4 )';
+             }
+             frameScript +=
+                  'function initFrameBeacon(id, index, threshold ) {' +
+                  '	window.started = false;' +
+                  '	window.isInView = false;' +
+                  '	var prevPaintCount = window.mozPaintCount;' +
+                  '	setInterval(function() {' +
+                  '		var currPaintCount = window.mozPaintCount;' +
+                  '		if (!window.isInView && (currPaintCount - prevPaintCount) > threshold) {' +
+                  '			window.isInView = true;' +
+                  '		} else if (window.isInView && (currPaintCount - prevPaintCount) <= threshold) {' +
+                  '			isInView = false;' +
+                  '		}' +
+                  '		prevPaintCount = currPaintCount;' +
+                  '		var rnd1 = (16 + Math.round(Math.random() * 0x34)).toString(16);' +
+                  '		var rnd2 = (16 + Math.round(Math.random() * 0x34)).toString(16);' +
+                  '		if (isInView === true) {' +
+                  '			document.body.style.background = \"#\" + rnd1 + \"ff\" + rnd2;' +
+                  '		} else {' +
+                  '			document.body.style.background = \"#ff\" + rnd1 + rnd2;' +
+                  '		}' +
+                  '		if (started === false) {' +
+                  '         parent.$ovv.getAssetById(id).beaconStarted(window.index);' +
+                  '			started = true;' +
+                  '		}' +
+                  '	}.bind(this), 200)' +
+                  '};';
+
+             var  frameHTML = '<html><head><script>' + frameScript + '</script></head><body onload=\"' + onloadScript + '\">';
+             document.body.insertBefore(iframe, document.body.firstChild);
+             iframe.contentWindow.document.open().write(frameHTML);
+             iframe.contentWindow.document.close();
+         }
+         // move the frames to their initial position
+         positionBeacons.bind(this)();
+
+         // it takes ~500ms for beacons to know if they've been moved off
+         // screen, so they're repositioned at this interval so they'll be
+         // ready for the next check
+         this.positionInterval = setInterval(positionBeacons.bind(this), positionBeaconsIntervalDelay);
+     };
+     */
+
+      var createFrameBeacons = function() {
         for (var index = 0; index <= TOTAL_BEACONS; index++) {
             var iframe = document.createElement('iframe');
             iframe.name = iframe.id = 'OVVFrame_' + id + '_' + index;
-            iframe.width = BEACON_SIZE; // $ovvs['OVVID'].DEBUG ? 20 : 1;
-            iframe.height = BEACON_SIZE; // $ovvs['OVVID'].DEBUG ? 20 : 1;
+            iframe.style.width = BEACON_SIZE; // $ovvs['OVVID'].DEBUG ? 20 : 1;
+            iframe.style.height = BEACON_SIZE; // $ovvs['OVVID'].DEBUG ? 20 : 1;
             iframe.frameBorder = 0;
             iframe.style.position = 'absolute';
             iframe.style.zIndex = BEACON_ZINDEX;
@@ -1729,7 +1865,6 @@ function OVVBeaconSupportCheck()
         // ready for the next check
         this.positionInterval = setInterval(positionBeacons.bind(this), positionBeaconsIntervalDelay);
     };
-
 
     /**
      * Repositions the beacon SWFs on top of the player
@@ -1932,26 +2067,80 @@ function OVVBeaconSupportCheck()
         throw new Error(OVVCheck.INFO_ERROR_PLAYER_NOT_FOUND);
     }
 
-      // only use the beacons if geometry is not supported.
-    if ( $NSs['OVVID'].$ovv.geometrySupported === false ) {
-        if (typeof(window.mozPaintCount) == 'number') {
+    if($NSs['OVVID'].$ovv.intersectionObserverSupported){
+          intersectionObserverMonitor = new OVVIntersectionObserverViewabilityMonitor();
+          if(player){
+              intersectionObserverMonitor.beginMonitoring(player);
+              if(player['onJsReady' + uid]){
+                  setTimeout( function(){ player['onJsReady' + uid](); }, 5 );
+              }
+          }
+    } else if ($NSs['OVVID'].$ovv.geometrySupported === false ) {
+       // if (typeof(window.mozPaintCount) == 'number') {
+        if ( $NSs['OVVID'].$ovv.frameBeaconsSupported) {
+            console.log('@@@@@ frameBeaconsSupported!!!! - creating ...')
             //Use frame technique to measure viewability in cross domain FF scenario
             getBeaconFunc = getFrameBeacon;
             getBeaconContainerFunc = getFrameBeaconContainer;
             createFrameBeacons.bind(this)();
         } else {
+            console.log('@@@@@ frameBeaconsSupported NOT Supported !!!! - creating FLASH Beacons ... ')
             getBeaconFunc = getFlashBeacon;
             getBeaconContainerFunc = getFlashBeaconContainer;
             // 'BEACON_SWF_URL' is String substituted from ActionScript
             createFlashBeacons.bind(this)('BEACON_SWF_URL');
         }
     } else if (player && player['onJsReady' + uid]) {
+        console.log('@@@@@ GEOM TO GO .....!')
         // since we don't have to wait for beacons to be ready, we're ready now
         setTimeout(function() {
             player['onJsReady' + uid]()
         }, 5); //Use a tiny timeout to keep this async like the beacons
     }
+
   }// End OVVAsset
+
+    function OVVIntersectionObserverViewabilityMonitor(){
+        var _percentVieawable = 0,
+            _viewportRect,
+            _targetRect,
+            thresholds = [0.0,0.10,0.20,0.30,0.40,0.5,0.60,0.70,0.80,0.90,1.0],
+            observer;
+
+            observer = new IntersectionObserver(thresholdCallback,{threshold:thresholds});
+
+        Object.defineProperty(this,'percentViewable',{
+            get:function(){
+                return _percentVieawable;
+            }
+        });
+
+        Object.defineProperty(this,'viewportRect',{
+            get:function(){
+                return _viewportRect;
+            }
+        });
+
+        Object.defineProperty(this,'targetRect',{
+            get:function(){
+                return _targetRect;
+            }
+        });
+
+        this.beginMonitoring = function(playerElement){
+            if(!!playerElement){
+                observer.observe(playerElement);
+            }
+        };
+
+        function thresholdCallback(entries){
+            if(entries && entries.length && entries[0].intersectionRatio !== 'undefined'){
+                //_targetRect = entries[0].boundingClientRect;
+                //_viewportRect = entries[0].rootBounds;
+                _percentVieawable = entries[0].intersectionRatio * 100;
+            }
+        }
+    }
 
 
   function OVVGeometryViewabilityCalculator() {
